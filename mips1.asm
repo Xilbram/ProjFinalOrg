@@ -64,6 +64,7 @@ input_usuario:        .space 4
 
 # Labels para o cupom fiscal
 	              	.align 2
+cupom_fiscal_label:     .asciiz "\n########## CUPOM FISCAL ##########\n"
 bebida_label:         	.asciiz "Bebida: "
 tamanho_label:        	.asciiz "\nTamanho: "
 tamanho_pequeno_label:  .asciiz "Pequeno"
@@ -321,7 +322,7 @@ main:
         jal preparaBebidaFunc
 
         # Gera cupom fiscal
-        # jal geraCupomFiscal
+        jal geraCupomFiscal
 
         # Exibe mensagem de conclusão
         li $v0, 4
@@ -517,23 +518,29 @@ main:
         # Gera o arquivo .txt com a descrição da bebida e preço
         # ---------------------------------------------
         geraCupomFiscal:
+
+            subi $sp, $sp, 4 # decrementa 4 da stack
+            sw $ra, 0($sp) # salva o retorno na stack (será usado depois)
             # Abre o arquivo para escrita
             li $v0, 13        # Syscall 13: open file
             la $a0, nome_arquivo
-            li $a1, 0x602     # Flags: O_CREAT | O_WRONLY
-            li $a2, 0x1B6     # Mode: 666 em octal
+            li $a1, 1         # parametro write
+            li $a2, 0         # mode ignored (não sei o que faz, porém estava no help do mars)
             syscall
-            move $s0, $v0     # File descriptor
+            blt $v0, 0, erro_cupom_fiscal
+            move $s0, $v0     # Salva o file descriptor
+
+            jal escreve_cupom_fiscal
 
             # Escreve dados no arquivo
             # Exemplo: "Bebida: Café com Leite\nTamanho: Grande\nPreço: R$ 4.00\n"
 
             # Escreve "Bebida: "
-            li $v0, 15        # Syscall 15: write to file
-            move $a0, $s0     # File descriptor
-            la $a1, bebida_label
-            li $a2, 8         # Tamanho da string
-            syscall
+            li $v0, 15        # Syscall 15: escreve no arquivo
+            move $a0, $s0     # Passa o file descriptor para a0 (parâmetro)
+            la $a1, bebida_label    # passa para a1 a string a ser escrita
+            li $a2, 8         # Passa para a2 o tamanho da string
+            syscall           # escreve no arquivo.
 
             # Determina nome da bebida
             lw $t0, opcao_bebida
@@ -546,22 +553,23 @@ main:
 
             cupom_cafe_puro:
                 la $a1, bebida_cafe_puro
+                li $a2, 9 # tamanho da string
                 j escreve_bebida
 
             cupom_cafe_leite:
                 la $a1, bebida_cafe_leite
+                li $a2, 14 # tamanho da string
                 j escreve_bebida
 
             cupom_mochaccino:
                 la $a1, bebida_mochaccino
+                li $a2, 10 # tamanho da string
 
             escreve_bebida:
                 li $v0, 15
-                move $a0, $s0
-                la $t1, bebida_cafe_puro
-                li $a2, 10        # Tamanho máximo do nome
-                syscall
-
+                move $a0, $s0   # Passa o file descriptor para a0
+                syscall         # os parâmetros já deverão estar em a1 e a2 devido ao código acima
+                
                 # Escreve "\nTamanho: "
                 li $v0, 15
                 move $a0, $s0
@@ -578,32 +586,99 @@ main:
 
             cupom_tamanho_pequeno:
                 la $a1, tamanho_pequeno_label
+                li $a2, 7 # tamanho da string
                 j escreve_tamanho
 
             cupom_tamanho_grande:
                 la $a1, tamanho_grande_label
+                li $a2, 6 # tamanho da string
 
             escreve_tamanho:
                 li $v0, 15
                 move $a0, $s0
                 la $t1, tamanho_pequeno_label
-                li $a2, 8
                 syscall
 
                 # Escreve "\nPreço: "
                 li $v0, 15
                 move $a0, $s0
                 la $a1, preco_label
-                li $a2, 9
+                li $a2, 8
                 syscall
 
-                # Determina preço
-                # (Por simplicidade, você pode associar preços fixos conforme bebida e tamanho)
-                # Escreve o preço correspondente
+            # Determina preço
+            determina_preco:
+                li $t0, 'g'
+                lw $t1, opcao_tamanho
+                beq $t0, $t1, preco_grande
 
-                # Fecha o arquivo
-                li $v0, 16        # Syscall 16: close file
+                preco_pequeno:
+                    lw $t0, opcao_bebida
+                    li $t1, 2
+                    beq $t1, $t0, cafe_com_leite_pequeno
+                    li $t1, 3
+                    beq $t1, $t0, mochaccino_pequeno
+
+                    cafe_puro_pequeno:
+                        la $a1, preco_cafe_puro_pequeno
+                        li $a2, 7 # tamanho da string
+                        j escreve_preco
+
+                    cafe_com_leite_pequeno:
+                        la $a1, preco_cafe_leite_pequeno
+                        li $a2, 7 # tamanho da string
+                        j escreve_preco
+
+                    mochaccino_pequeno:
+                        la $a1, preco_mochaccino_pequeno
+                        li $a2, 7 # tamanho da string
+                        j escreve_preco
+
+                preco_grande:
+                    lw $t0, opcao_bebida
+                    li $t1, 2
+                    beq $t1, $t0, cafe_com_leite_grande
+                    li $t1, 3
+                    beq $t1, $t0, mochaccino_grande
+
+                    cafe_puro_grande:
+                        la $a1, preco_cafe_puro_grande
+                        li $a2, 7 # tamanho da string
+                        j escreve_preco
+
+                    cafe_com_leite_grande:
+                        la $a1, preco_cafe_leite_grande
+                        li $a2, 7 # tamanho da string
+                        j escreve_preco
+
+                    mochaccino_grande:
+                        la $a1, preco_mochaccino_grande
+                        li $a2, 7 # tamanho da string
+                        j escreve_preco
+            
+            escreve_preco:
+                li $v0, 15 # syscall de write
+                move $a0, $s0 # file descriptor
+                syscall     # já é para chegar aqui com os parâmetros para $a1 e $a2
+
+
+            jal escreve_cupom_fiscal
+
+            # Fecha o arquivo
+            li $v0, 16        # Syscall 16: close file
+            move $a0, $s0     # Passa o file descriptor a ser fechado.
+            syscall
+
+            lw $ra, 0($sp) # pega o retorno
+            addi $sp, $sp, 4 # incrementa 4 da stack
+
+            jr $ra
+
+            escreve_cupom_fiscal:
+                li $v0, 15
                 move $a0, $s0
+                la $a1, cupom_fiscal_label
+                li $a2, 36
                 syscall
 
                 jr $ra

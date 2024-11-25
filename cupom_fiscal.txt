@@ -1,0 +1,6 @@
+
+########## CUPOM FISCAL ##########
+Bebida: Mochaccino
+Tamanho: Grande
+Preço: R$ 5.00
+########## CUPOM FISCAL ##########
