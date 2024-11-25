@@ -1,0 +1,10 @@
+Coloquei a verificação do que falta e a mensagem do que falta. Modifiquei a verificação do estoque (o funcionamento é o mesmo, só está mais enxuto)
+
+
+Adicionei verificações na entrada, para não enviar dados errados pro resto do programa.
+
+
+removi todo o atualiza_estoque, como já havia o verifica_estoque, e o preparaBebidaFunc já contabilizava as doses, só subtrai o estoque logo após utilizar as doses no iniciar_preparacao
+
+
+os carregamentos do ra na stack estavam sendo feitos com -16, mas só precisa ser -4 pra guardar os inteiros
