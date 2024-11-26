@@ -11,3 +11,6 @@ os carregamentos do ra na stack estavam sendo feitos com -16, mas só precisa se
 Método de gerar o cupom fiscal funcionando, talvez seja bom deixar mais bonito
 
 Adicionei o .jar do Mars ao repositório visto que o write file escreve no diretório em que está o mars
+
+1.3
+Deixei o cupom fiscal mais bonito, e também separei um pouco mais em blocos os métodos do gera cupom.

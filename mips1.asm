@@ -45,9 +45,9 @@ debug:	              .asciiz "\n Estou debugando aqui"
 
 # Nomes das bebidas
 	    	      .align 2
-bebida_cafe_puro:     .asciiz "Café Puro"
-bebida_cafe_leite:    .asciiz "Café com Leite"
-bebida_mochaccino:    .asciiz "Mochaccino"
+bebida_cafe_puro:     .asciiz "                   Café Puro"
+bebida_cafe_leite:    .asciiz "              Café com Leite"
+bebida_mochaccino:    .asciiz "                  Mochaccino" # espaços para alinhar com o cupom fiscal
 
 # Arquivo de cupom fiscal
 	    	      .align 2
@@ -64,13 +64,21 @@ input_usuario:        .space 4
 
 # Labels para o cupom fiscal
 	              	.align 2
-cupom_fiscal_label:     .asciiz "\n########## CUPOM FISCAL ##########\n"
-bebida_label:         	.asciiz "Bebida: "
-tamanho_label:        	.asciiz "\nTamanho: "
-tamanho_pequeno_label:  .asciiz "Pequeno"
-tamanho_grande_label:   .asciiz "Grande"
-preco_label:          	.asciiz "\nPreço: "
-quebra_linha:         	.asciiz "\n"
+cupom_fiscal_label:     .asciiz "########### CUPOM FISCAL ###########"
+empresa_label:         	.asciiz "Padaria Organização de Computadores"
+cnpj_label:            	.asciiz "CNPJ:            12.345.678/0001-91"
+separador_de_linha:     .asciiz "-----------------------------------"
+bebida_label:         	.asciiz "Bebida:"
+tamanho_label:        	.asciiz "Tamanho:"
+acucar_label:           .asciiz "Açúcar:" # Esses espaços todos são para alinhar o texto bonitinho no cupom
+preco_label:          	.asciiz "Preço Final:                "
+tamanho_pequeno_label:  .asciiz "                    Pequeno"
+tamanho_grande_label:   .asciiz "                     Grande" # Esses espaços todos são para alinhar o texto bonitinho no cupom
+acucar_sim_label:       .asciiz "                         Sim"
+acucar_nao_label:       .asciiz "                         Não"
+espacamento_data_1:     .asciiz "         "
+espacamento_data_2:     .asciiz "   "
+endl:                	.asciiz "\n"
 # ---------------------------------------------
 # Segmento de Texto
 # ---------------------------------------------
@@ -79,17 +87,15 @@ quebra_linha:         	.asciiz "\n"
 
 main:
     # Exibe mensagem de boas-vindas
-    li $v0, 4
     la $a0, msg_boas_vindas
-    syscall
+    jal print
 
     inicio:
 
         seleciona_opcao_bebida:
             # Exibe menu de bebidas
-            li $v0, 4
             la $a0, msg_menu
-            syscall
+            jal print
 
             # Lê opção de bebida
             li $v0, 5	#Inputs mapeados: 1 -Café preto; 2- Café com leite; 3- Mocachino -5 Reabastecer
@@ -108,9 +114,8 @@ main:
 
         seleciona_tamanho_bebida:
             # Solicita tamanho da bebida
-            li $v0, 4	
             la $a0, msg_tamanho
-            syscall
+            jal print
 
             # Lê opção de tamanho
             li $v0, 12	#Le caracteres p ou g
@@ -136,9 +141,8 @@ main:
 
         seleciona_acucar:
             # Solicita adição de açúcar
-            li $v0, 4	
             la $a0, msg_acucar
-            syscall
+            jal print
 
             # Lê opção de açúcar
             li $v0, 12	#Le caractere s ou n
@@ -160,19 +164,16 @@ main:
                                         # Vai retornar o primeiro que detectar estar faltando, não todos
             
             
-            li $v0, 4 # Caso falte, a mensagem de falta já foi carregada no verifica estoque
-            syscall
+            jal print # Caso falte, a mensagem de falta já foi carregada no verifica estoque
 
-            li $v0, 4
             la $a0, msg_reabastecer # apenas mostra a mensagem de como abrir o menu de reabastecimento
-            syscall
+            jal print
 
             j inicio
 
         entrada_invalida:
-            li $v0, 4
             la $a0, msg_entrada_invalida
-            syscall
+            jal print
 
             beq $t0, 0, seleciona_opcao_bebida
             beq $t0, 1, seleciona_tamanho_bebida
@@ -181,9 +182,8 @@ main:
 
     reabastecer:
         # Solicita contêiner para reabastecer
-        li $v0, 4
         la $a0, msg_reabastecer_opcao
-        syscall
+        jal print
 
         # Lê opção de contêiner
         li $v0, 5	#Mapeamento de entradas:
@@ -195,9 +195,8 @@ main:
         jal reabasteceContainer
 
         # Exibe mensagem de sucesso
-        li $v0, 4
         la $a0, msg_reabastecido
-        syscall
+        jal print
 
         # Retorna ao início
         j inicio
@@ -314,9 +313,8 @@ main:
             
     prepararBebida:
         # Exibe mensagem de preparação
-        li $v0, 4
         la $a0, msg_preparando
-        syscall
+        jal print
 
         # Simula preparação da bebida
         jal preparaBebidaFunc
@@ -325,9 +323,8 @@ main:
         jal geraCupomFiscal
 
         # Exibe mensagem de conclusão
-        li $v0, 4
         la $a0, msg_concluido
-        syscall
+        jal print
 
         # Retorna ao início
         j inicio
@@ -509,7 +506,7 @@ main:
 
                         sub $t3, $t2, $t1  # Calcula diferença
                         # 1000 ms = 1 segundo
-                        blt $t3, 1000, espera_loop
+                        blt $t3, 10, espera_loop
 
                         jr $ra
 
@@ -530,87 +527,153 @@ main:
             blt $v0, 0, erro_cupom_fiscal
             move $s0, $v0     # Salva o file descriptor
 
-            jal escreve_cupom_fiscal
+            # Exemplo de cupom fiscal a ser escrito:
+            
+            #   ########### CUPOM FISCAL ###########
+            #   
+            #   Padaria Organização de Computadores
+            #   CNPJ:            12.345.678/0001-91
+            #   
+            #   -----------------------------------
+            #   Bebida:              Café com Leite
+            #   Tamanho:                     Grande
+            #   Açúcar:                         Sim
+            #   -----------------------------------
+            #   
+            #   Preço Final:                R$ 4.00
+            #   
+            #   -----------------------------------
+            #            10:35   26/11/2024
+            #   
+            #   ########### CUPOM FISCAL ###########
 
-            # Escreve dados no arquivo
-            # Exemplo: "Bebida: Café com Leite\nTamanho: Grande\nPreço: R$ 4.00\n"
+            # para cada linha (não precisaria ser para cada linha porém nossas strings estão divididas assim):
+            # syscall 15 para escrever no arquivo # reaproveita esse aqui
+            # passa em a0 o file descriptor       # reaproveita esse aqui
+            # em a1 o endereço da string          # muda esse
+            # eme a2 o tamanho da string          # muda esse
+            li $v0, 15        # Syscall 15: escreve no arquivo              
+            move $a0, $s0     # Passa o file descriptor para a0 (parâmetro) 
 
-            # Escreve "Bebida: "
-            li $v0, 15        # Syscall 15: escreve no arquivo
-            move $a0, $s0     # Passa o file descriptor para a0 (parâmetro)
-            la $a1, bebida_label    # passa para a1 a string a ser escrita
-            li $a2, 8         # Passa para a2 o tamanho da string
-            syscall           # escreve no arquivo.
+            # Escreve "########### CUPOM FISCAL ###########"
+            jal label_cupom_fiscal
+
+            jal quebra_linha # quebra de linha (fizemos separado das outras strings para ter maior controle da formatação)
+
+            jal quebra_linha
+
+            # Escreve "Padaria Organização de Computadores"
+            la $a1, empresa_label
+            li $a2, 36
+            jal escreve_string
+            jal quebra_linha
+
+            # Escreve "CNPJ:            12.345.678/0001-91"
+            la $a1, cnpj_label
+            li $a2, 36
+            jal escreve_string
+            jal quebra_linha
+
+            jal quebra_linha
+
+            # Escreve "-----------------------------------"
+            jal separa_linha
+
+            jal quebra_linha
+
+            # Escreve "Bebida:              "
+            la $a1, bebida_label
+            li $a2, 7
+            jal escreve_string
 
             # Determina nome da bebida
             lw $t0, opcao_bebida
-            li $a0, 1
-            beq $t0, $a0, cupom_cafe_puro
-            li $a0, 2
-            beq $t0, $a0, cupom_cafe_leite
-            li $a0, 3
-            beq $t0, $a0, cupom_mochaccino
+            li $t1, 1
+            beq $t0, $t1, cupom_cafe_puro
+            li $t1, 2
+            beq $t0, $t1, cupom_cafe_leite
+            li $t1, 3
+            beq $t0, $t1, cupom_mochaccino
 
             cupom_cafe_puro:
                 la $a1, bebida_cafe_puro
-                li $a2, 9 # tamanho da string
+                li $a2, 28 # tamanho da string
                 j escreve_bebida
 
             cupom_cafe_leite:
                 la $a1, bebida_cafe_leite
-                li $a2, 14 # tamanho da string
+                li $a2, 28 # tamanho da string
                 j escreve_bebida
 
             cupom_mochaccino:
                 la $a1, bebida_mochaccino
-                li $a2, 10 # tamanho da string
+                li $a2, 28 # tamanho da string
 
             escreve_bebida:
-                li $v0, 15
-                move $a0, $s0   # Passa o file descriptor para a0
-                syscall         # os parâmetros já deverão estar em a1 e a2 devido ao código acima
-                
-                # Escreve "\nTamanho: "
-                li $v0, 15
-                move $a0, $s0
-                la $a1, tamanho_label
-                li $a2, 10
-                syscall
+                jal escreve_string
+                jal quebra_linha
 
-                # Escreve tamanho
-                lw $t1, opcao_tamanho
-                li $t2, 'p'
-                beq $t1, $t2, cupom_tamanho_pequeno
-                li $t2, 'g'
-                beq $t1, $t2, cupom_tamanho_grande
+            # Escreve "Tamanho:                     "
+            la $a1, tamanho_label
+            li $a2, 8
+            jal escreve_string
+    
+            lw $t1, opcao_tamanho
+            li $t2, 'p'
+            beq $t1, $t2, cupom_tamanho_pequeno
+            li $t2, 'g'
+            beq $t1, $t2, cupom_tamanho_grande
 
             cupom_tamanho_pequeno:
                 la $a1, tamanho_pequeno_label
-                li $a2, 7 # tamanho da string
+                li $a2, 27 # tamanho da string
                 j escreve_tamanho
 
             cupom_tamanho_grande:
                 la $a1, tamanho_grande_label
-                li $a2, 6 # tamanho da string
+                li $a2, 27 # tamanho da string
 
             escreve_tamanho:
-                li $v0, 15
-                move $a0, $s0
-                la $t1, tamanho_pequeno_label
-                syscall
+                jal escreve_string
+                jal quebra_linha
 
-                # Escreve "\nPreço: "
-                li $v0, 15
-                move $a0, $s0
-                la $a1, preco_label
-                li $a2, 8
-                syscall
+            # Escreve "Açúcar:                         "
+            la $a1, acucar_label
+            li $a2, 7
+            jal escreve_string
+
+            lw $t0, opcao_acucar
+            li $t1, 's'
+            beq $t0, $t1, cupom_acucar_sim
+            
+            cupom_acucar_nao:
+                la $a1, acucar_nao_label
+                li $a2, 28 # tamanho da string
+                j escreve_acucar
+            
+            cupom_acucar_sim:
+                la $a1, acucar_sim_label
+                li $a2, 28 # tamanho da string
+            
+            escreve_acucar:
+                jal escreve_string
+                jal quebra_linha
+
+            jal separa_linha
+            jal quebra_linha
+            jal quebra_linha
+
+            # Escreve "Preço Final:                "
+            la $a1, preco_label
+            li $a2, 28
+            jal escreve_string
 
             # Determina preço
             determina_preco:
                 li $t0, 'g'
                 lw $t1, opcao_tamanho
                 beq $t0, $t1, preco_grande
+                li $a2, 7 # Todas as strings tem o mesmo tamanho
 
                 preco_pequeno:
                     lw $t0, opcao_bebida
@@ -621,17 +684,14 @@ main:
 
                     cafe_puro_pequeno:
                         la $a1, preco_cafe_puro_pequeno
-                        li $a2, 7 # tamanho da string
                         j escreve_preco
 
                     cafe_com_leite_pequeno:
                         la $a1, preco_cafe_leite_pequeno
-                        li $a2, 7 # tamanho da string
                         j escreve_preco
 
                     mochaccino_pequeno:
                         la $a1, preco_mochaccino_pequeno
-                        li $a2, 7 # tamanho da string
                         j escreve_preco
 
                 preco_grande:
@@ -643,30 +703,33 @@ main:
 
                     cafe_puro_grande:
                         la $a1, preco_cafe_puro_grande
-                        li $a2, 7 # tamanho da string
                         j escreve_preco
 
                     cafe_com_leite_grande:
                         la $a1, preco_cafe_leite_grande
-                        li $a2, 7 # tamanho da string
                         j escreve_preco
 
                     mochaccino_grande:
                         la $a1, preco_mochaccino_grande
-                        li $a2, 7 # tamanho da string
                         j escreve_preco
             
             escreve_preco:
-                li $v0, 15 # syscall de write
-                move $a0, $s0 # file descriptor
-                syscall     # já é para chegar aqui com os parâmetros para $a1 e $a2
+                jal escreve_string
+                jal quebra_linha
 
+            jal quebra_linha
+            jal separa_linha
+            jal quebra_linha
 
-            jal escreve_cupom_fiscal
-
+            # imprime o horário e data
+            #jal printa_data # função que imprime a data e hora (não implementada)
+            jal quebra_linha
+            
+            jal quebra_linha
+            jal label_cupom_fiscal
+            
             # Fecha o arquivo
             li $v0, 16        # Syscall 16: close file
-            move $a0, $s0     # Passa o file descriptor a ser fechado.
             syscall
 
             lw $ra, 0($sp) # pega o retorno
@@ -674,19 +737,40 @@ main:
 
             jr $ra
 
-            escreve_cupom_fiscal:
+
+            quebra_linha:
+                li $v0, 15
+                move $a0, $s0
+                la $a1, endl
+                li $a2, 1
+                syscall
+                jr $ra
+
+            separa_linha:
+                li $v0, 15
+                move $a0, $s0
+                la $a1, separador_de_linha
+                li $a2, 35
+                syscall
+                jr $ra
+
+            label_cupom_fiscal:
                 li $v0, 15
                 move $a0, $s0
                 la $a1, cupom_fiscal_label
                 li $a2, 36
                 syscall
+                jr $ra
 
+            escreve_string:
+                li $v0, 15
+                move $a0, $s0
+                syscall     # importante: a1 e a0 já foram setados antes de chamar essa função
                 jr $ra
 
             erro_cupom_fiscal:
                 la $a0, msg_erro_cupom_fiscal # não deveria acontecer, just in case
-                li $v0, 4
-                syscall
+                jal print
 
                 li $v0, 5 # tentar novamente, sim/nao
                 syscall
@@ -697,12 +781,17 @@ main:
                 #else
                 j inicio
 
+
     sair:
         # Exibe mensagem de saída
-        li $v0, 4
         la $a0, msg_saida
-        syscall
+        jal print
 
         # Encerra o programa
         li $v0, 10
         syscall
+
+    print:
+        li $v0, 4
+        syscall
+        jr $ra
