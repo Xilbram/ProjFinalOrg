@@ -4,7 +4,7 @@
 # ---------------------------------------------
 # Segmento de Dados
 # ---------------------------------------------
-        .data
+.data
 
 # Contêineres de pós (20 doses cada)
 	    .align 2
@@ -61,6 +61,7 @@ opcao_tamanho_int:    .space 4  #Opcao de tamanho mapeado em int (grande = 2, pe
 opcao_acucar:         .space 4  #Opcao de acucar em char (s ou n)
 opcao_acucar_int:     .space 4  #Opcao de acucar mapeado em int (s = 1, n = 0)
 input_usuario:        .space 4
+exibicao_digital_lab_sim: .space 4 #Valor que será usado para ser exibido no digital lab sim
 
 # Labels para o cupom fiscal
 	              	.align 2
@@ -86,6 +87,8 @@ endl:                	.asciiz "\n"
         .globl main
 
 main:
+
+    li $s7, 0xFFFF0010		    	# Endereço do display para passar o valor. Evitar modificar este registrador, ou colocar ele na memória e ficar pegando-o na função display
     # Exibe mensagem de boas-vindas
     la $a0, msg_boas_vindas
     jal print
@@ -98,14 +101,13 @@ main:
             jal print
 
             # Lê opção de bebida
-            li $v0, 5	#Inputs mapeados: 1 -Café preto; 2- Café com leite; 3- Mocachino -5 Reabastecer
-            syscall
-            sw $v0, opcao_bebida
+            jal escanea_digital_lab_sim
 
             li $t0, 0 # Indica que a entrada inválida ocorreu no seleciona_opcao_bebida
-            beq $v0, 4, entrada_invalida # Caso ocorra, imprime entrada inválida e recomeça
-            bgt $v0, 5, entrada_invalida # Caso ocorra, imprime entrada inválida e recomeça
-            blt $v0, 1, entrada_invalida # Caso ocorra, imprime entrada inválida e recomeça
+            lw $t1, opcao_bebida
+            beq $t1, 4, entrada_invalida # Caso ocorra, imprime entrada inválida e recomeça
+            bgt $t1, 5, entrada_invalida # Caso ocorra, imprime entrada inválida e recomeça
+            blt $t1, 1, entrada_invalida # Caso ocorra, imprime entrada inválida e recomeça
                                         # (Importante para garantir que o resto da lógica funcione).
 
             # Verifica se o usuário digitou 5 para reabastecer. Vai pra func ver o que ele deseja reabastecer
@@ -795,3 +797,91 @@ main:
         li $v0, 4
         syscall
         jr $ra
+        
+        
+    escanea_digital_lab_sim:
+    	subi $sp, $sp, 4  #Salva quem chamou a func na stack. O método de display pegará o endereço de quem chamou e irá retornar pra lá
+	sw $ra, 0($sp)
+	
+    	li $t0, 0x1			    	# Inicializa t0 com o valor para varrer a linha 1 do teclado
+ 	li $s0, 0xFFFF0012		   	# Endereço de comando do teclado
+ 	li $s1, 0xFFFF0014		  	# Endereço dos dados do teclado
+ 	li $s2, 0xFFFF0010		    	# Endereço do display para passar o valor
+
+	sb $t0, 0($s0)				# Envia o comando para verificar uma linha do teclado
+ 	lb $s3, 0($s1)				# Lê o valor da tecla pressionada
+ 	beq $s3, $zero, avanca_proxima_coluna	# Se nenhuma tecla foi pressionada, avança para a próxima coluna			
+ 	
+ 	#Realiza mapeamento de valor lido para input
+ 	li $t4, 0x21           			# Tecla '1'
+ 	beq $s3, $t4, display_1			
+ 	li $t4, 0x41           			# Tecla '2'
+ 	beq $s3, $t4, display_2			
+ 	li $t4, 0x81           			# Tecla '3'
+ 	beq $s3, $t4, display_3			
+ 	li $t4, 0x12           			# Tecla '4'
+ 	beq $s3, $t4, display_4			
+ 	li $t4, 0x22           			# Tecla '5'
+ 	beq $s3, $t4, display_5				
+
+ 	jr $ra 					
+	
+avanca_proxima_coluna:
+ 	sll $t0, $t0, 1				    # Desloca para a próxima linha do teclado
+ 	li  $t5, 16 				    # Verifica se já percorreu todas as linhas (tamanho do teclado)
+ 	beq $t0, $t5, reset_leitura_teclado		    # Se já percorreu todas, reinicia
+ 	j escanea_digital_lab_sim
+ 
+ reset_leitura_teclado:
+ 	li $t0, 0x1				    # Reseta para a primeira linha
+ 	j escanea_digital_lab_sim
+
+display_1:
+    li $t5, 1				    # Valor para '1'
+    sw $t5, opcao_bebida
+    li $t5, 0x06				    # Valor para '1' no digital lab
+    sw $t5, 0($s7)
+    sw $t5, exibicao_digital_lab_sim 
+    lw $ra, 0($sp) 
+    addi $sp, $sp, 4 #Devolve ponteiro pro topo
+    jr $ra 	
+
+display_2:
+    li $t5, 2				    # Valor para '2'
+    sw $t5, opcao_bebida
+    li $t5, 0x5B	    #valor de 2 no digital lab
+    sw $t5, 0($s7)    		#exibe valor no display
+    sw $t5, exibicao_digital_lab_sim    #salva valor na mem se quiser exibir dps 
+    lw $ra, 0($sp)
+    addi $sp, $sp, 4 #Devolve ponteiro pro topo
+    jr $ra 
+
+display_3:
+    li $t5, 3				    # Valor para '3'
+    sw $t5, opcao_bebida
+    li $t5, 0x4F
+    sw $t5, 0($s7)
+    sw $t5, exibicao_digital_lab_sim
+    lw $ra, 0($sp) 
+    addi $sp, $sp, 4 #Devolve ponteiro pro topo
+    jr $ra 
+
+display_4:
+    li $t5, 4				    # Valor para '4'
+    sw $t5, opcao_bebida
+    li $t5, 0x66
+    sw $t5, 0($s7)
+    sw $t5, exibicao_digital_lab_sim
+    lw $ra, 0($sp) 
+    addi $sp, $sp, 4 #Devolve ponteiro pro topo
+    jr $ra 
+    
+display_5:
+    li $t5, 5				    # Valor para '5'
+    sw $t5, opcao_bebida
+    li $t5, 0x6D
+    sw $t5, 0($s7)
+    sw $t5, exibicao_digital_lab_sim
+    lw $ra, 0($sp) 
+    addi $sp, $sp, 4 #Devolve ponteiro pro topo
+    jr $ra 
