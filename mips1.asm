@@ -8,10 +8,10 @@
 
 # Contêineres de pós (20 doses cada)
 	    .align 2
-cafe:       .word 1
-leite:      .word 1
-chocolate:  .word 1
-acucar:     .word 1
+cafe:       .word 20
+leite:      .word 20
+chocolate:  .word 20
+acucar:     .word 20
 
 
 # Displays:
