@@ -8,10 +8,16 @@
 
 # Contêineres de pós (20 doses cada)
 	    .align 2
-cafe:       .word 20
-leite:      .word 20
-chocolate:  .word 20
-acucar:     .word 20
+cafe:       .word 1
+leite:      .word 1
+chocolate:  .word 1
+acucar:     .word 1
+
+
+# Displays:
+            .align 2
+dsp1:       .word 0xFFFF0011 # Display 1
+dsp2:       .word 0xFFFF0010 # Display 2
 
 # Preços das bebidas
 			      .align 2
@@ -27,15 +33,15 @@ preco_mochaccino_grande:      .asciiz "R$ 5.00"
 msg_boas_vindas:      .asciiz "\nBem-vindo à Máquina de Café!\n"
 msg_menu:             .asciiz "\nEscolha a bebida:\n1 - Café Puro\n2 - Café com Leite\n3 - Mochaccino\nOpção: "
 msg_entrada_invalida: .asciiz "\nEntrada Inválida\n"
-msg_tamanho:          .asciiz "\nEscolha o tamanho (p - pequeno, g - grande): "
-msg_acucar:           .asciiz "\nDeseja adicionar açúcar? (s - sim, n - não): "
+msg_tamanho:          .asciiz "\nEscolha o tamanho (1 - pequeno, 2 - grande): "
+msg_acucar:           .asciiz "\nDeseja adicionar açúcar? (0 - não, 1 - sim): "
 msg_preparando:       .asciiz "\nPreparando sua bebida...\n"
 msg_concluido:        .asciiz "\nBebida pronta! Aproveite!\n"
 msg_falta_cafe:       .asciiz "\nEstoque de cafe insuficiente para preparar a bebida selecionada.\n"
 msg_falta_leite:      .asciiz "\nEstoque de leite insuficiente para preparar a bebida selecionada.\n"
 msg_falta_chocolate:  .asciiz "\nEstoque de chocolate insuficiente para preparar a bebida selecionada.\n"
 msg_falta_acucar:     .asciiz "\nEstoque de acucar insuficiente para preparar a bebida selecionada.\n"
-msg_erro_cupom_fiscal:.asciiz "\nOcorreu um erro na geração do seu cupom fiscal, tentar novamente? (s - sim, n - não)\n"
+msg_erro_cupom_fiscal:.asciiz "\nOcorreu um erro na geração do seu cupom fiscal, tentar novamente? (0 - não, 1 - sim)\n"
 
 msg_reabastecer:      .asciiz "\nDigite 5 no menu de seleção de bebida para abrir o menu de reabastecimento\n"
 msg_reabastecer_opcao:.asciiz "\nQual contêiner deseja reabastecer?\n1 - Café\n2 - Leite\n3 - Chocolate\n4 - Açúcar\nOpção: "
@@ -56,10 +62,8 @@ nome_arquivo:         .asciiz "cupom_fiscal.txt"
 # Variáveis auxiliares para calcular durante procedimento (Pega input user e joga na memória pra poder debugar também)
 	    	      .align 2
 opcao_bebida:         .space 4 	#Opcao de bebida em int
-opcao_tamanho:        .space 4  #Opcao de tamanho em char (g ou p)
-opcao_tamanho_int:    .space 4  #Opcao de tamanho mapeado em int (grande = 2, pequeno = 1)
-opcao_acucar:         .space 4  #Opcao de acucar em char (s ou n)
-opcao_acucar_int:     .space 4  #Opcao de acucar mapeado em int (s = 1, n = 0)
+opcao_tamanho:        .space 4  #Opcao de tamanho em int (1 - pequeno ou 2 - grande)
+opcao_acucar:         .space 4  #Opcao de acucar em int (0 - nao ou 1 - sim)
 input_usuario:        .space 4
 exibicao_digital_lab_sim: .space 4 #Valor que será usado para ser exibido no digital lab sim
 
@@ -101,13 +105,14 @@ main:
             jal print
 
             # Lê opção de bebida
-            jal escanea_digital_lab_sim
+            jal escanea_digital_lab_sim # Retorna o valor numérico em v0
+
+            sw $v0, opcao_bebida
 
             li $t0, 0 # Indica que a entrada inválida ocorreu no seleciona_opcao_bebida
-            lw $t1, opcao_bebida
-            beq $t1, 4, entrada_invalida # Caso ocorra, imprime entrada inválida e recomeça
-            bgt $t1, 5, entrada_invalida # Caso ocorra, imprime entrada inválida e recomeça
-            blt $t1, 1, entrada_invalida # Caso ocorra, imprime entrada inválida e recomeça
+            beq $v0, 4, entrada_invalida # Caso ocorra, imprime entrada inválida e recomeça
+            bgt $v0, 5, entrada_invalida # Caso ocorra, imprime entrada inválida e recomeça
+            blt $v0, 1, entrada_invalida # Caso ocorra, imprime entrada inválida e recomeça
                                         # (Importante para garantir que o resto da lógica funcione).
 
             # Verifica se o usuário digitou 5 para reabastecer. Vai pra func ver o que ele deseja reabastecer
@@ -120,25 +125,14 @@ main:
             jal print
 
             # Lê opção de tamanho
-            li $v0, 12	#Le caracteres p ou g
-            syscall
-            sw $v0, opcao_tamanho
+            jal escanea_digital_lab_sim # Le tamanho 1 - pequeno, 2 - grande, retorna em v0
 
-            beq $v0, 112, mapeia_tamanho_pequeno # 112 em ascii é p
-            beq $v0, 103, mapeia_tamanho_grande  # 103 em ascii é g
+            sw $v0, opcao_tamanho
 
             # Caso não faça o desvio, a entrada foi inválida
             li $t0, 1 # Indica que a entrada inválida ocorreu no seleciona_tamanho_bebida
-            j entrada_invalida
-
-            mapeia_tamanho_pequeno:
-                li $t1, 1
-                sw $t1, opcao_tamanho_int
-                j seleciona_acucar
-
-            mapeia_tamanho_grande:
-                li $t1, 2
-                sw $t1, opcao_tamanho_int
+            blt $v0, 1, entrada_invalida
+            bgt $v0, 2, entrada_invalida # Caso o usuário digite algo diferente de 1 ou 2
 
         seleciona_acucar:
             # Solicita adição de açúcar
@@ -146,16 +140,12 @@ main:
             jal print
 
             # Lê opção de açúcar
-            li $v0, 12	#Le caractere s ou n
-            syscall
+            jal escanea_digital_lab_sim # Le caractere 0 - não, 1 - sim
             sw $v0, opcao_acucar
-            
-            beq $v0, 110, tudo_ok # 110 em ascii é n
-            beq $v0, 115, tudo_ok # 115 em ascii é s
 
-            # se chegar aqui, é por que a entrada foi inválida
             li $t0, 2 # Indica que a entrada inválida ocorreu no seleciona_acucar
-            j entrada_invalida
+            blt $v0, 0, entrada_invalida
+            bgt $v0, 1, entrada_invalida # Entrada inválida
 
         tudo_ok:
             # Verifica estoque e prepara a bebida
@@ -187,8 +177,7 @@ main:
         jal print
 
         # Lê opção de contêiner
-        li $v0, 5	#Mapeamento de entradas:
-        syscall
+        jal escanea_digital_lab_sim # Retorna a opção em v0
         sw $v0, input_usuario
 
         # Reabastece o contêiner selecionado
@@ -249,7 +238,7 @@ main:
     verificaEstoque:
         # Carrega opções do usuário
         lw $t0, opcao_bebida
-        lw $t1, opcao_tamanho_int
+        lw $t1, opcao_tamanho
         lw $t2, opcao_acucar
     
         verifica_doses:
@@ -296,8 +285,7 @@ main:
                 blt $t3, $t1, estoque_insuficiente
                 
             verifica_dose_acucar:
-                li $t4, 'n'
-                beq $t2, $t4, estoque_suficiente # Se chegou até aqui e não precisa de açúcar, estoque suficiente
+                beq $t2, 0, estoque_suficiente # Se chegou até aqui e não precisa de açúcar, estoque suficiente
                 
                 lw $t3, acucar
                 la $a0, msg_falta_acucar
@@ -327,6 +315,8 @@ main:
         la $a0, msg_concluido
         jal print
 
+        li $s3, -1
+        jal escreve_display_num
         # Retorna ao início
         j inicio
 
@@ -345,8 +335,7 @@ main:
             lw $t0, opcao_bebida
             lw $t1, opcao_tamanho
 
-            li $t3, 'g'
-            beq $t1, $t3, tamanho_grande_prepara
+            beq $t1, 2, tamanho_grande_prepara
 
             tamanho_pequeno_prepara:
             # Determina doses necessárias novamente
@@ -369,7 +358,7 @@ main:
                 dose_acucar:
                     #verifica se precisa de açúcar ou não
                     lw $a0, opcao_acucar
-                    beq $a0, 110, doses_bebida # ascii da letra n
+                    beq $a0, 0, doses_bebida # sem açúcar
                     # Se ele não pulou, significa que é para colocar o açúcar
                     move $t7, $t1 # doses em $t1
 
@@ -399,46 +388,58 @@ main:
                     move $t6, $t1  # Doses de chocolate
 
             iniciar_preparacao:
+                # Soma o tempo total para mostrar no display
+                move $s3, $t3 # Tempo de água
+                add $s3, $s3, $t4 # doses de café
+                add $s3, $s3, $t5 # doses de leite
+                add $s3, $s3, $t6 # doses de chocolate
+                add $s3, $s3, $t7 # doses de açúcar
 
                 move $s2, $t3  # Tempo de água de acordo com o tamanho do copo, coloca em s2
+                
+                jal escreve_display_num # Escreve o tempo inicial no display (Máximo de 18, capuchinno grande com açúcar)
+                                        # O Liberapo e liberaAgua chamam o método espera1segundo. Nesse método é feito o decréscimo desse registrador
+                                        # e também atualiza o display
+
+
                 # Prepara café
                 move $s1, $t4  # doses de café
-                jal liberaPo
+                jal liberaPo   
 
-                lw $a0, cafe
-                sub $a0, $a0, $t4 # Atualiza o café em estoque
-                sw $a0, cafe
+                lw $a1, cafe
+                sub $a1, $a1, $t4 # Atualiza o café em estoque
+                sw $a1, cafe
 
                 # Prepara leite
                 move $s1, $t5  # doses de leite
                 jal liberaPo
 
-                lw $a0, leite
-                sub $a0, $a0, $t5 # Atualiza o leite em estoque
-                sw $a0, leite
+                lw $a1, leite
+                sub $a1, $a1, $t5 # Atualiza o leite em estoque
+                sw $a1, leite
 
                 # Prepara chocolate
                 move $s1, $t6  # doses de chocolate
                 jal liberaPo
 
-                lw $a0, chocolate
-                sub $a0, $a0, $t6 # Atualiza o chocolate em estoque
-                sw $a0, chocolate
+                lw $a1, chocolate
+                sub $a1, $a1, $t6 # Atualiza o chocolate em estoque
+                sw $a1, chocolate
 
                 # Prepara açúcar
                 move $s1, $t7  # doses de açúcar
                 jal liberaPo
     
-                lw $a0, acucar
-                sub $a0, $a0, $t7 # Atualiza o açucar em estoque
-                sw $a0, acucar
+                lw $a1, acucar
+                sub $a1, $a1, $t7 # Atualiza o açucar em estoque
+                sw $a1, acucar
 
                 # Libera água
 
                 jal liberaAgua
                 
-                lw $ra, 0($sp) #Restaura $ra da posição 16, que retém o valor de quem chamou a função prepara_bebida_func. Ponteiro já está no topo
-                jr $ra 	#Pra onde esse cara deveria retornar?
+                lw $ra, 0($sp) # Restaura $ra da posição 16, que retém o valor de quem chamou a função prepara_bebida_func. Ponteiro já está no topo
+                jr $ra 	# Pra onde esse cara deveria retornar?
 
                 # ---------------------------------------------
                 # Procedimento: liberaPo
@@ -448,16 +449,16 @@ main:
                 liberaPo:
                     subi $sp, $sp, 4 #É preciso salvar o valor de chamada de quem puxou esta funcao pois o $ra será sobreescrito dentro dela.Libera Po
                     sw $ra, 0($sp)
-                    move $t0, $zero
+                    move $t8, $zero
 
                     #Hora que t0 atinge valor de pó necessário funcao retorna
                     liberaPo_loop:
-                        beq $t0, $s1, liberaPo_fim
+                        beq $t8, $s1, liberaPo_fim
 
                         # Simula 1 segundo
-                        jal espera1Segundo
+                        jal espera1Segundo # Recebe o tempo atual em s3
 
-                        addi $t0, $t0, 1
+                        addi $t8, $t8, 1
                         j liberaPo_loop
 
                     liberaPo_fim:
@@ -473,15 +474,15 @@ main:
                 liberaAgua:
                     subi $sp, $sp, 4 #É preciso salvar o valor de chamada de quem puxou esta funcao pois o $ra será sobreescrito dentro dela. LiberaAgua
                     sw $ra, 0($sp)
-                    move $t0, $zero
+                    move $t8, $zero
 
                     liberaAgua_loop:
-                        beq $t0, $s2, liberaAgua_fim
+                        beq $t8, $s2, liberaAgua_fim
 
                         # Simula 1 segundo
                         jal espera1Segundo
 
-                        addi $t0, $t0, 1
+                        addi $t8, $t8, 1
                         j liberaAgua_loop
 
                     liberaAgua_fim:
@@ -495,6 +496,9 @@ main:
                 # ---------------------------------------------
                 espera1Segundo:
                     # Lê tempo inicial. Isso está em ms como descrito no Mars_guide, pois vem de Java.util.Date.getTime() 
+                    subi $sp, $sp, 4 # Vai haver chamada de função
+                    sw $ra, 0($sp)
+
                     li $v0, 30
                     syscall
                     move $t1, $a0  # Tempo inicial em ms
@@ -509,7 +513,14 @@ main:
                         # 1000 ms = 1 segundo
                         blt $t3, 10, espera_loop
 
-                        jr $ra
+
+                    subi $s3, $s3, 1 # Decrementa um segundo do timer
+
+                    jal escreve_display_num # O tempo deve estar em s3
+
+                    lw $ra, 0($sp)
+                    addi $sp, $sp, 4
+                    jr $ra
 
         # ---------------------------------------------
         # Procedimento: geraCupomFiscal
@@ -620,10 +631,7 @@ main:
             jal escreve_string
     
             lw $t1, opcao_tamanho
-            li $t2, 'p'
-            beq $t1, $t2, cupom_tamanho_pequeno
-            li $t2, 'g'
-            beq $t1, $t2, cupom_tamanho_grande
+            beq $t1, 2, cupom_tamanho_grande
 
             cupom_tamanho_pequeno:
                 la $a1, tamanho_pequeno_label
@@ -644,8 +652,7 @@ main:
             jal escreve_string
 
             lw $t0, opcao_acucar
-            li $t1, 's'
-            beq $t0, $t1, cupom_acucar_sim
+            beq $t0, 1, cupom_acucar_sim # 1 se tiver açúcar
             
             cupom_acucar_nao:
                 la $a1, acucar_nao_label
@@ -671,10 +678,9 @@ main:
 
             # Determina preço
             determina_preco:
-                li $t0, 'g'
                 lw $t1, opcao_tamanho
                 li $a2, 7 # Todas as strings tem o mesmo tamanho
-                beq $t0, $t1, preco_grande
+                beq $t1, 2, preco_grande
 
                 preco_pequeno:
                     lw $t0, opcao_bebida
@@ -774,10 +780,9 @@ main:
                 la $a0, msg_erro_cupom_fiscal # não deveria acontecer, just in case
                 jal print
 
-                li $v0, 5 # tentar novamente, sim/nao
-                syscall
+                jal escanea_digital_lab_sim # Retorna o valor em vo
 
-                li $a0, 's'
+                li $a0, 1
                 beq $a0, $v0, geraCupomFiscal
 
                 #else
@@ -799,89 +804,385 @@ main:
         jr $ra
         
         
-    escanea_digital_lab_sim:
-    	subi $sp, $sp, 4  #Salva quem chamou a func na stack. O método de display pegará o endereço de quem chamou e irá retornar pra lá
-	sw $ra, 0($sp)
-	
-    	li $t0, 0x1			    	# Inicializa t0 com o valor para varrer a linha 1 do teclado
+escanea_digital_lab_sim: # Executa a leitura até achar um valor, quando achar retorna o número pressionado.
+    subi $sp, $sp, 4
+    sw $ra, 0($sp) # Guarda o retorno pois irá haver chamada de função
+
+    li $t0, 0x1			    	# Inicializa t0 com o valor para varrer a linha 1 do teclado
  	li $s0, 0xFFFF0012		   	# Endereço de comando do teclado
  	li $s1, 0xFFFF0014		  	# Endereço dos dados do teclado
- 	li $s2, 0xFFFF0010		    	# Endereço do display para passar o valor
 
-	sb $t0, 0($s0)				# Envia o comando para verificar uma linha do teclado
- 	lb $s3, 0($s1)				# Lê o valor da tecla pressionada
- 	beq $s3, $zero, avanca_proxima_coluna	# Se nenhuma tecla foi pressionada, avança para a próxima coluna			
+    verifica_coluna:
+        sb $t0, 0($s0)				# Envia o comando para verificar uma linha do teclado
+        lw $s3, 0($s1)				# Lê o valor da tecla pressionada
+        beq $s3, $zero, avanca_proxima_coluna	# Se nenhuma tecla foi pressionada, avança para a próxima coluna			
  	
- 	#Realiza mapeamento de valor lido para input
- 	li $t4, 0x21           			# Tecla '1'
- 	beq $s3, $t4, display_1			
- 	li $t4, 0x41           			# Tecla '2'
- 	beq $s3, $t4, display_2			
- 	li $t4, 0x81           			# Tecla '3'
- 	beq $s3, $t4, display_3			
- 	li $t4, 0x12           			# Tecla '4'
- 	beq $s3, $t4, display_4			
- 	li $t4, 0x22           			# Tecla '5'
- 	beq $s3, $t4, display_5				
+    # Caso chegue aqui é por que alguma tecla foi pressionada, retorna em v0.
 
+    jal escreve_display_hexa # Escreve o número lido no display
+
+    jal parse_hex_num # Irá transformar o hex lido em número para retornar ao código, retorna no mesmo registrador v0
+
+    lw $ra, 0($sp)
+    addi $sp, $sp, 4
  	jr $ra 					
 	
 avanca_proxima_coluna:
  	sll $t0, $t0, 1				    # Desloca para a próxima linha do teclado
  	li  $t5, 16 				    # Verifica se já percorreu todas as linhas (tamanho do teclado)
  	beq $t0, $t5, reset_leitura_teclado		    # Se já percorreu todas, reinicia
- 	j escanea_digital_lab_sim
- 
- reset_leitura_teclado:
- 	li $t0, 0x1				    # Reseta para a primeira linha
- 	j escanea_digital_lab_sim
+ 	j verifica_coluna
 
-display_1:
-    li $t5, 1				    # Valor para '1'
-    sw $t5, opcao_bebida
-    li $t5, 0x06				    # Valor para '1' no digital lab
-    sw $t5, 0($s7)
-    sw $t5, exibicao_digital_lab_sim 
-    lw $ra, 0($sp) 
-    addi $sp, $sp, 4 #Devolve ponteiro pro topo
-    jr $ra 	
+reset_leitura_teclado:
+	li $t0, 0x1				    # Reseta para a primeira linha
+	j verifica_coluna
 
-display_2:
-    li $t5, 2				    # Valor para '2'
-    sw $t5, opcao_bebida
-    li $t5, 0x5B	    #valor de 2 no digital lab
-    sw $t5, 0($s7)    		#exibe valor no display
-    sw $t5, exibicao_digital_lab_sim    #salva valor na mem se quiser exibir dps 
-    lw $ra, 0($sp)
-    addi $sp, $sp, 4 #Devolve ponteiro pro topo
-    jr $ra 
 
-display_3:
-    li $t5, 3				    # Valor para '3'
-    sw $t5, opcao_bebida
-    li $t5, 0x4F
-    sw $t5, 0($s7)
-    sw $t5, exibicao_digital_lab_sim
-    lw $ra, 0($sp) 
-    addi $sp, $sp, 4 #Devolve ponteiro pro topo
-    jr $ra 
+parse_hex_num: # Recebe uma posição em hexadecimal do display em s3 e retorna o número correspondente.
+    beq $s3, 0x11, num0
+    beq $s3, 0x21, num1
+    beq $s3, 0x41, num2
+    beq $s3, 0x81, num3
+    beq $s3, 0x12, num4
+    beq $s3, 0x22, num5
+    beq $s3, 0x42, num6
+    beq $s3, 0x82, num7
+    beq $s3, 0x14, num8
+    beq $s3, 0x24, num9
+    beq $s3, 0x44, num10
+    beq $s3, 0x84, num11
+    beq $s3, 0x18, num12
+    beq $s3, 0x28, num13
+    beq $s3, 0x48, num14
+    beq $s3, 0x88, num15
+    num0:
+        li $v0, 0
+        jr $ra
+    num1:
+        li $v0, 1
+        jr $ra
+    num2:
+        li $v0, 2
+        jr $ra
+    num3:
+        li $v0, 3
+        jr $ra
+    num4:
+        li $v0, 4
+        jr $ra
+    num5:
+        li $v0, 5
+        jr $ra
+    num6:
+        li $v0, 6
+        jr $ra
+    num7:
+        li $v0, 7
+        jr $ra
+    num8:
+        li $v0, 8
+        jr $ra
+    num9:
+        li $v0, 9
+        jr $ra
+    num10:
+        li $v0, 10
+        jr $ra
+    num11:
+        li $v0, 11
+        jr $ra
+    num12:
+        li $v0, 12
+        jr $ra
+    num13:
+        li $v0, 13
+        jr $ra
+    num14:
+        li $v0, 14
+        jr $ra
+    num15:
+        li $v0, 15
+        jr $ra
 
-display_4:
-    li $t5, 4				    # Valor para '4'
-    sw $t5, opcao_bebida
-    li $t5, 0x66
-    sw $t5, 0($s7)
-    sw $t5, exibicao_digital_lab_sim
-    lw $ra, 0($sp) 
-    addi $sp, $sp, 4 #Devolve ponteiro pro topo
-    jr $ra 
+    li $v0, -1 # Se chegar até aqui é por que o valor inserido é incorreto
+    jr $ra
+
+escreve_display_num: # Recebe um número em base decimal em s3 e passa ao equivalente display
+                     # Será utilizado ao printar os segundos decrementando
+    beq $s3, -1, case_PF
+    beq $s3, 0, case_0
+    beq $s3, 1, case_1
+    beq $s3, 2, case_2
+    beq $s3, 3, case_3
+    beq $s3, 4, case_4
+    beq $s3, 5, case_5
+    beq $s3, 6, case_6
+    beq $s3, 7, case_7
+    beq $s3, 8, case_8
+    beq $s3, 9, case_9
+    beq $s3, 10, case_10
+    beq $s3, 11, case_11
+    beq $s3, 12, case_12
+    beq $s3, 13, case_13
+    beq $s3, 14, case_14
+    beq $s3, 15, case_15
+    beq $s3, 16, case_16
+    beq $s3, 17, case_17
+    beq $s3, 18, case_18
+
+    j case_null # Se chegar aqui é por que houve um erro na passagem
+
+escreve_display_hexa: # Recebe um numero hexadecimal como parâmetro em s3 e passa ao equivalente display
+                     # Será utilizado ao printar os botão selecionado no display 
+    beq $s3, 0x11, case_0
+    beq $s3, 0x21, case_1
+    beq $s3, 0x41, case_2
+    beq $s3, 0x81, case_3
+    beq $s3, 0x12, case_4
+    beq $s3, 0x22, case_5
+    beq $s3, 0x42, case_6
+    beq $s3, 0x82, case_7
+    beq $s3, 0x14, case_8
+    beq $s3, 0x24, case_9
+    beq $s3, 0x44, case_10
+    beq $s3, 0x84, case_11
+    beq $s3, 0x18, case_12
+    beq $s3, 0x28, case_13
+    beq $s3, 0x48, case_14
+    beq $s3, 0x88, case_15
     
-display_5:
-    li $t5, 5				    # Valor para '5'
-    sw $t5, opcao_bebida
-    li $t5, 0x6D
-    sw $t5, 0($s7)
-    sw $t5, exibicao_digital_lab_sim
-    lw $ra, 0($sp) 
-    addi $sp, $sp, 4 #Devolve ponteiro pro topo
-    jr $ra 
+    j case_null # Se chegar aqui é por que houve um erro na passagem
+
+# Valores para mostrar no display:
+    case_PF:
+        lw $t0, dsp1
+		lw $t1, dsp2
+
+		li $t2, 0x73
+		li $t3, 0x71
+
+        sb $t2, 0($t0)
+        sb $t3, 0($t1)
+		
+        jr $ra
+    case_0:
+        lw $t0, dsp1
+		lw $t1, dsp2
+
+		li $t2, 0x3f
+		li $t3, 0x3f
+
+        sb $t2, 0($t0)
+        sb $t3, 0($t1)
+		
+        jr $ra
+	case_1:
+        lw $t0, dsp1
+		lw $t1, dsp2
+
+		li $t2, 0x3f
+		li $t3, 0x06
+
+        sb $t2, 0($t0)
+        sb $t3, 0($t1)
+		
+        jr $ra
+	case_2:
+        lw $t0, dsp1
+		lw $t1, dsp2
+
+		li $t2, 0x3f
+		li $t3, 0x5b
+
+        sb $t2, 0($t0)
+        sb $t3, 0($t1)
+		
+        jr $ra
+	case_3:
+        lw $t0, dsp1
+		lw $t1, dsp2
+
+		li $t2, 0x3f
+		li $t3, 0x4f
+
+        sb $t2, 0($t0)
+        sb $t3, 0($t1)
+		
+        jr $ra
+    case_4:
+        lw $t0, dsp1
+		lw $t1, dsp2
+
+		li $t2, 0x3f
+		li $t3, 0x66
+
+        sb $t2, 0($t0)
+        sb $t3, 0($t1)
+		
+        jr $ra
+	case_5:
+        lw $t0, dsp1
+		lw $t1, dsp2
+
+		li $t2, 0x3f
+		li $t3, 0x6d
+
+        sb $t2, 0($t0)
+        sb $t3, 0($t1)
+		
+        jr $ra
+	case_6:
+        lw $t0, dsp1
+		lw $t1, dsp2
+
+		li $t2, 0x3f
+		li $t3, 0x7d
+
+        sb $t2, 0($t0)
+        sb $t3, 0($t1)
+		
+        jr $ra
+	case_7:
+        lw $t0, dsp1
+		lw $t1, dsp2
+
+		li $t2, 0x3f
+		li $t3, 0x07
+
+        sb $t2, 0($t0)
+        sb $t3, 0($t1)
+		
+        jr $ra
+	case_8:
+        lw $t0, dsp1
+		lw $t1, dsp2
+
+		li $t2, 0x3f
+		li $t3, 0x7f
+
+        sb $t2, 0($t0)
+        sb $t3, 0($t1)
+		
+        jr $ra
+	case_9:
+        lw $t0, dsp1
+		lw $t1, dsp2
+
+		li $t2, 0x3f
+		li $t3, 0x67
+
+        sb $t2, 0($t0)
+        sb $t3, 0($t1)
+		
+        jr $ra
+	case_10:
+        lw $t0, dsp1
+		lw $t1, dsp2
+
+		li $t2, 0x06
+		li $t3, 0x3f
+
+		sb $t2, 0($t0)
+        sb $t3, 0($t1)
+
+		jr $ra
+	case_11:
+        lw $t0, dsp1
+		lw $t1, dsp2
+
+		li $t2, 0x06
+		li $t3, 0x06
+
+		sb $t2, 0($t0)
+        sb $t3, 0($t1)
+        
+		jr $ra
+	case_12:
+        lw $t0, dsp1
+		lw $t1, dsp2
+
+		li $t2, 0x06
+		li $t3, 0x5b
+
+		sb $t2, 0($t0)
+        sb $t3, 0($t1)
+        
+		jr $ra
+	case_13:
+        lw $t0, dsp1
+		lw $t1, dsp2
+
+		li $t2, 0x06
+		li $t3, 0x4f
+
+		sb $t2, 0($t0)
+        sb $t3, 0($t1)
+        
+		jr $ra
+	case_14:
+        lw $t0, dsp1
+		lw $t1, dsp2
+
+		li $t2, 0x06
+		li $t3, 0x66
+
+		sb $t2, 0($t0)
+        sb $t3, 0($t1)
+        
+		jr $ra
+	case_15:
+        lw $t0, dsp1
+		lw $t1, dsp2
+
+		li $t2, 0x06
+		li $t3, 0x6d
+
+		sb $t2, 0($t0)
+        sb $t3, 0($t1)
+        
+		jr $ra
+    case_16:
+        lw $t0, dsp1
+		lw $t1, dsp2
+
+		li $t2, 0x06
+		li $t3, 0x7d
+
+		sb $t2, 0($t0)
+        sb $t3, 0($t1)
+        
+		jr $ra
+    case_17:
+        lw $t0, dsp1
+		lw $t1, dsp2
+
+		li $t2, 0x06
+		li $t3, 0x07
+
+		sb $t2, 0($t0)
+        sb $t3, 0($t1)
+        
+		jr $ra
+    case_18:
+        lw $t0, dsp1
+		lw $t1, dsp2
+
+		li $t2, 0x06
+		li $t3, 0x7f
+
+		sb $t2, 0($t0)
+        sb $t3, 0($t1)
+        
+		jr $ra
+    
+    case_null:
+        lw $t0, dsp1
+        lw $t1, dsp2
+        
+        li $t2, 0xff
+        li $t3, 0xff
+
+        sb $t2, 0($t0)
+        sb $t3, 0($t1)
+        
+        jr $ra
