@@ -140,7 +140,6 @@ main:
                 li $t1, 2
                 sw $t1, opcao_tamanho_int
 
-
         seleciona_acucar:
             # Solicita adição de açúcar
             la $a0, msg_acucar
@@ -674,8 +673,8 @@ main:
             determina_preco:
                 li $t0, 'g'
                 lw $t1, opcao_tamanho
-                beq $t0, $t1, preco_grande
                 li $a2, 7 # Todas as strings tem o mesmo tamanho
+                beq $t0, $t1, preco_grande
 
                 preco_pequeno:
                     lw $t0, opcao_bebida
@@ -717,6 +716,7 @@ main:
             
             escreve_preco:
                 jal escreve_string
+
                 jal quebra_linha
 
             jal quebra_linha
