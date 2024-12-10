@@ -31,3 +31,4 @@ Terminei de modificar para usar o display de 7 seg e a entrada do digital lab si
 
 0x73 P
 0x71 F
+0x39 C

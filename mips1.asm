@@ -8,10 +8,10 @@
 
 # Contêineres de pós (20 doses cada)
 	    .align 2
-cafe:       .word 1
-leite:      .word 1
-chocolate:  .word 1
-acucar:     .word 1
+cafe:       .word 20
+leite:      .word 20
+chocolate:  .word 20
+acucar:     .word 20
 
 
 # Displays:
@@ -108,6 +108,8 @@ main:
     inicio:
 
         seleciona_opcao_bebida:
+            li $s3, -3 # Reseta o display
+            jal escreve_display_num
             # Exibe menu de bebidas
             la $a0, msg_menu
             jal print
@@ -388,12 +390,13 @@ main:
         # Gera cupom fiscal
         jal geraCupomFiscal
 
+        li $s3, -2 # Case PF (Pedido finalizado)
+        jal escreve_display_num
+
         # Exibe mensagem de conclusão
         la $a0, msg_concluido
         jal print
 
-        li $s3, -1
-        jal escreve_display_num
         # Retorna ao início
         j inicio
 
@@ -588,7 +591,7 @@ main:
 
                         sub $t3, $t2, $t1  # Calcula diferença
                         # 1000 ms = 1 segundo
-                        blt $t3, 10, espera_loop
+                        blt $t3, 1000, espera_loop
 
 
                     subi $s3, $s3, 1 # Decrementa um segundo do timer
@@ -608,6 +611,9 @@ main:
             subi $sp, $sp, 4 # decrementa 4 da stack
             sw $ra, 0($sp) # salva o retorno na stack (será usado depois)
             # Abre o arquivo para escrita
+            li $s3, -1 # Case cupom_fiscal
+            jal escreve_display_num
+
             li $v0, 13        # Syscall 13: open file
             la $a0, nome_arquivo
             li $a1, 1         # parametro write
@@ -986,7 +992,6 @@ parse_hex_num: # Recebe uma posição em hexadecimal do display em s3 e retorna 
 
 escreve_display_num: # Recebe um número em base decimal em s3 e passa ao equivalente display
                      # Será utilizado ao printar os segundos decrementando
-    beq $s3, -1, case_PF
     beq $s3, 0, case_0
     beq $s3, 1, case_1
     beq $s3, 2, case_2
@@ -1006,8 +1011,11 @@ escreve_display_num: # Recebe um número em base decimal em s3 e passa ao equiva
     beq $s3, 16, case_16
     beq $s3, 17, case_17
     beq $s3, 18, case_18
+    beq $s3, -1, case_CF
+    beq $s3, -2, case_PF
+    beq $s3, -3, case_null
 
-    j case_null # Se chegar aqui é por que houve um erro na passagem
+    j case_error # Se chegar aqui é por que houve um erro na passagem
 
 escreve_display_hexa: # Recebe um numero hexadecimal como parâmetro em s3 e passa ao equivalente display
                      # Será utilizado ao printar os botão selecionado no display 
@@ -1028,9 +1036,20 @@ escreve_display_hexa: # Recebe um numero hexadecimal como parâmetro em s3 e pas
     beq $s3, 0x48, case_14
     beq $s3, 0x88, case_15
     
-    j case_null # Se chegar aqui é por que houve um erro na passagem
+    j case_error # Se chegar aqui é por que houve um erro na passagem
 
 # Valores para mostrar no display:
+    case_CF:
+        lw $t0, dsp1
+        lw $t1, dsp2
+
+        li $t2, 0x39
+        li $t3, 0x71
+
+        sb $t2, 0($t0)
+        sb $t3, 0($t1)
+
+        jr $ra
     case_PF:
         lw $t0, dsp1
 		lw $t1, dsp2
@@ -1252,7 +1271,7 @@ escreve_display_hexa: # Recebe um numero hexadecimal como parâmetro em s3 e pas
         
 		jr $ra
     
-    case_null:
+    case_error:
         lw $t0, dsp1
         lw $t1, dsp2
         
@@ -1262,4 +1281,16 @@ escreve_display_hexa: # Recebe um numero hexadecimal como parâmetro em s3 e pas
         sb $t2, 0($t0)
         sb $t3, 0($t1)
         
+        jr $ra
+
+    case_null:
+        lw $t0, dsp1
+        lw $t1, dsp2
+
+        li $t2, 0x00
+        li $t3, 0x00
+
+        sb $t2, 0($t0)
+        sb $t3, 0($t1)
+
         jr $ra
