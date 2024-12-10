@@ -8,10 +8,10 @@
 
 # Contêineres de pós (20 doses cada)
 	    .align 2
-cafe:       .word 20
-leite:      .word 20
-chocolate:  .word 20
-acucar:     .word 20
+cafe:       .word 1
+leite:      .word 1
+chocolate:  .word 1
+acucar:     .word 1
 
 
 # Displays:
@@ -44,7 +44,15 @@ msg_falta_acucar:     .asciiz "\nEstoque de acucar insuficiente para preparar a 
 msg_erro_cupom_fiscal:.asciiz "\nOcorreu um erro na geração do seu cupom fiscal, tentar novamente? (0 - não, 1 - sim)\n"
 
 msg_reabastecer:      .asciiz "\nDigite 5 no menu de seleção de bebida para abrir o menu de reabastecimento\n"
-msg_reabastecer_opcao:.asciiz "\nQual contêiner deseja reabastecer?\n1 - Café\n2 - Leite\n3 - Chocolate\n4 - Açúcar\nOpção: "
+msg_reabastecer_menu:.asciiz "\nQual contêiner deseja reabastecer?"
+msg_reabastecer_cafe: .asciiz "\n1 - Café"
+msg_quantidade_em_estoque: .asciiz " (Quantidade em estoque: "
+msg_end_bracket:      .asciiz ")"
+msg_reabastecer_leite:.asciiz "\n2 - Leite"
+msg_reabastecer_chocolate:.asciiz "\n3 - Chocolate"
+msg_reabastecer_acucar:.asciiz "\n4 - Açúcar"
+msg_reabastecer_opcao:.asciiz "\nOpção: "
+msg_reabastecer_sair: .asciiz "\n5 - Voltar ao menu principal"
 msg_reabastecido:     .asciiz "\nContêiner reabastecido com sucesso!\n"
 msg_saida:            .asciiz "\nObrigado por utilizar a Máquina de Café!\n"
 debug:	              .asciiz "\n Estou debugando aqui"
@@ -169,17 +177,86 @@ main:
             beq $t0, 0, seleciona_opcao_bebida
             beq $t0, 1, seleciona_tamanho_bebida
             beq $t0, 2, seleciona_acucar
+            beq $t0, 5, reabastecer
             j inicio # Esse jump não é para acontecer, mas só para ter certeza.
 
     reabastecer:
         # Solicita contêiner para reabastecer
-        la $a0, msg_reabastecer_opcao
+        la $a0, msg_reabastecer_menu
         jal print
 
+        # Mostra o código do café e a quantidade
+            la $a0, msg_reabastecer_cafe
+            jal print
+
+            la $a0, msg_quantidade_em_estoque  
+            jal print
+
+            lw $a0, cafe # Mostra quantidade de café
+            li $v0, 1
+            syscall
+
+            la $a0, msg_end_bracket
+            jal print
+
+        # Mostra o código do leite e a quantidade
+            la $a0, msg_reabastecer_leite
+            jal print
+
+            la $a0, msg_quantidade_em_estoque
+            jal print
+
+            lw $a0, leite # Mostra quantidade de leite
+            li $v0, 1
+            syscall
+
+            la $a0, msg_end_bracket
+            jal print
+
+        # Mostra o código do chocolate e a quantidade
+            la $a0, msg_reabastecer_chocolate
+            jal print
+
+            la $a0, msg_quantidade_em_estoque
+            jal print
+
+            lw $a0, chocolate # Mostra quantidade de chocolate
+            li $v0, 1
+            syscall
+
+            la $a0, msg_end_bracket
+            jal print
+
+        # Mostra o código do açúcar e a quantidade
+            la $a0, msg_reabastecer_acucar
+            jal print
+
+            la $a0, msg_quantidade_em_estoque
+            jal print
+
+            lw $a0, acucar # Mostra quantidade de açúcar
+            li $v0, 1
+            syscall
+
+            la $a0, msg_end_bracket
+            jal print
+        
+        la $a0, msg_reabastecer_sair
+        jal print
+        
+        la $a0, msg_reabastecer_opcao
+        jal print
+        
         # Lê opção de contêiner
         jal escanea_digital_lab_sim # Retorna a opção em v0
-        sw $v0, input_usuario
 
+        li $t0, 5 # Indica que a entrada inválida ocorreu no seleciona_opcao_bebida
+        bgt $v0, 5, entrada_invalida # Caso ocorra, imprime entrada inválida e recomeça
+        blt $v0, 1, entrada_invalida # Caso ocorra, imprime entrada inválida e recomeça
+
+
+        sw $v0, input_usuario
+        beq $v0, 5, inicio # Se o usuário deseja voltar ao início, retorna
         # Reabastece o contêiner selecionado
         lw $a0, input_usuario
         jal reabasteceContainer
@@ -189,7 +266,7 @@ main:
         jal print
 
         # Retorna ao início
-        j inicio
+        j reabastecer
         # ---------------------------------------------
         # Procedimento: reabasteceContainer
         # Reabastece o contêiner selecionado para 20 doses
